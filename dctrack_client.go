@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"time"
 
@@ -443,21 +444,46 @@ func (c *Client) fetchPage(ctx context.Context, url string, payload interface{})
 			break
 		}
 
-		// Parse response
+		// Read response body first for debugging
+		bodyBytes, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return nil, fmt.Errorf("error reading response body: %w", err)
+		}
+
+		c.logger.Debug("DCTrack raw response received",
+			zap.Int("response_size", len(bodyBytes)),
+			zap.String("response_preview", string(bodyBytes)[:minInt(200, len(bodyBytes))]))
+
+		// Parse response with detailed logging
 		var dctrackResp DCTrackResponse
-		if err := json.NewDecoder(resp.Body).Decode(&dctrackResp); err != nil {
+		if err := json.Unmarshal(bodyBytes, &dctrackResp); err != nil {
+			c.logger.Error("Failed to decode DCTrack response",
+				zap.Error(err),
+				zap.String("response_preview", string(bodyBytes)[:minInt(500, len(bodyBytes))]))
 			return nil, fmt.Errorf("error decoding response: %w", err)
 		}
 
+		c.logger.Debug("DCTrack API response parsed",
+			zap.Int("total_rows", dctrackResp.TotalRows),
+			zap.Int("page_number", dctrackResp.PageNumber),
+			zap.Int("page_size", dctrackResp.PageSize),
+			zap.Int("items_in_response", len(dctrackResp.SearchResults.Items)))
+
 		var items []DCTrackItem
-		for _, record := range dctrackResp.Records {
+		for i, record := range dctrackResp.SearchResults.Items {
 			item, err := c.mapDCTrackRecord(record)
 			if err != nil {
-				c.logger.Warn("Error mapping DCTrack record", zap.Error(err))
+				c.logger.Warn("Error mapping DCTrack record",
+					zap.Int("record_index", i),
+					zap.Error(err))
 				continue
 			}
 			items = append(items, item)
 		}
+
+		c.logger.Debug("DCTrack items mapped successfully",
+			zap.Int("raw_items_count", len(dctrackResp.SearchResults.Items)),
+			zap.Int("mapped_items_count", len(items)))
 
 		return items, nil
 	}
@@ -465,12 +491,24 @@ func (c *Client) fetchPage(ctx context.Context, url string, payload interface{})
 	return nil, fmt.Errorf("all retry attempts failed, last error: %w", lastErr)
 }
 
-// DCTrackResponse represents the response structure from DCTrack API
+// DCTrackResponse represents the actual response structure from DCTrack API
 type DCTrackResponse struct {
-	Records []map[string]interface{} `json:"records"`
+	TotalRows     int `json:"totalRows"`
+	PageNumber    int `json:"pageNumber"`
+	PageSize      int `json:"pageSize"`
+	SearchResults struct {
+		Items []map[string]interface{} `json:"items"`
+	} `json:"searchResults"`
 }
 
 // Helper functions
+
+func minInt(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
 
 func validateConfig(config Config) error {
 	if config.URL == "" {
@@ -486,50 +524,9 @@ func validateConfig(config Config) error {
 }
 
 func (c *Client) buildFieldsPayload() map[string]interface{} {
-	// Essential fields for all requests
-	fields := []map[string]string{
-		{"name": "id"},
-		{"name": "tiName"},
-		{"name": "cmbLocation"},
-		{"name": "cmbStatus"},
-		{"name": "tiClass"},
-		{"name": "cmbMake"},
-		{"name": "cmbModel"},
-		{"name": "cmbCabinet"},
-		{"name": "tiSerialNumber"},
-		{"name": "tiItemOriginalPower"},
-		{"name": "lastUpdatedOn"},
-		{"name": "cmbSystemAdminTeam"},
-		{"name": "tiCustomField_Primary Contact"},
-	}
-
-	if c.config.RequestAllFields {
-		// Add comprehensive field set
-		additionalFields := []map[string]string{
-			{"name": "tiSubclass"},
-			{"name": "tiAssetTag"},
-			{"name": "tiFormFactor"},
-			{"name": "tiMounting"},
-			{"name": "tiWidth"},
-			{"name": "tiDepth"},
-			{"name": "tiWeight"},
-			{"name": "tiRUs"},
-			{"name": "tiPotentialPower"},
-			{"name": "tiEffectivePower"},
-			{"name": "tiPowerCapacity"},
-			{"name": "tiPSRedundancy"},
-			{"name": "tiPurchasePrice"},
-			{"name": "tiContractAmount"},
-			{"name": "installationDate"},
-			{"name": "contractEndDate"},
-			{"name": "purchaseDate"},
-		}
-		fields = append(fields, additionalFields...)
-	}
-
-	return map[string]interface{}{
-		"selectedColumns": fields,
-	}
+	// Use minimal payload that works (confirmed by testing)
+	// Complex field selection was causing issues
+	return map[string]interface{}{}
 }
 
 func (c *Client) mapDCTrackRecord(record map[string]interface{}) (DCTrackItem, error) {
@@ -587,7 +584,7 @@ func (c *Client) mapDCTrackRecord(record map[string]interface{}) (DCTrackItem, e
 		return nil
 	}
 
-	// Map core fields
+	// Map core fields (fixed to match actual DCTrack field names)
 	item.ID = getString("id")
 	item.Name = getString("tiName")
 	item.ItemClass = getString("tiClass")
@@ -595,8 +592,8 @@ func (c *Client) mapDCTrackRecord(record map[string]interface{}) (DCTrackItem, e
 	item.Status = getString("cmbStatus")
 	item.Location = getString("cmbLocation")
 	item.Cabinet = getString("cmbCabinet")
-	item.Rack = getString("cmbCabinet")
-	item.Position = getString("cmbPosition")
+	item.Rack = getString("cmbCabinet")       // DCTrack uses cabinet for both
+	item.Position = getString("cmbUPosition") // Fixed: was cmbPosition, should be cmbUPosition
 	item.Height = getInt("tiRUs")
 	item.Make = getString("cmbMake")
 	item.Model = getString("cmbModel")
@@ -616,6 +613,23 @@ func (c *Client) mapDCTrackRecord(record map[string]interface{}) (DCTrackItem, e
 	}
 	item.CreatedAt = time.Now()
 	item.UpdatedAt = time.Now()
+
+	// Validate required fields for database NOT NULL constraints
+	if item.ID == "" {
+		return item, fmt.Errorf("missing required field: id")
+	}
+	if item.Name == "" {
+		return item, fmt.Errorf("missing required field: tiName")
+	}
+	if item.ItemClass == "" {
+		return item, fmt.Errorf("missing required field: tiClass")
+	}
+	if item.Status == "" {
+		return item, fmt.Errorf("missing required field: cmbStatus")
+	}
+	if item.Location == "" {
+		return item, fmt.Errorf("missing required field: cmbLocation")
+	}
 
 	return item, nil
 }
