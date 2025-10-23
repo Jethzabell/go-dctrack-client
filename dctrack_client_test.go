@@ -208,14 +208,14 @@ func TestClientIntegration(t *testing.T) {
 				"records": [
 					{
 						"id": "test-001",
-						"tiName": "Test Server 1",
-						"cmbLocation": "TEST-DC",
-						"cmbStatus": "Installed",
-						"tiClass": "Device",
-						"cmbMake": "Dell",
-						"cmbModel": "PowerEdge R730",
-						"tiItemOriginalPower": "500",
-						"lastUpdatedOn": "2024-01-01 12:00:00-05"
+						"name": "Test Server 1",
+						"location": "TEST-DC",
+						"status": "Installed",
+						"item_class": "Device",
+						"make": "Dell",
+						"model": "PowerEdge R730",
+						"original_power": "500",
+						"last_updated_at": "2024-01-01 12:00:00-05"
 					}
 				]
 			}`
