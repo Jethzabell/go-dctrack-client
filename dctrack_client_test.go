@@ -296,7 +296,7 @@ func TestClientClose(t *testing.T) {
 }
 
 func BenchmarkFilterBuilder(b *testing.B) {
-	b.Run("", func(b *testing.B) {
+	b.Run("filter_builder", func(b *testing.B) {
 		_ = NewFilterBuilder().
 			Location("RDU2").
 			Status("Installed").
@@ -315,7 +315,7 @@ func BenchmarkConfigValidation(b *testing.B) {
 		Password: "pass",
 	}
 
-	b.Run("", func(b *testing.B) {
+	b.Run("validate_config", func(b *testing.B) {
 		_ = validateConfig(config)
 	})
 }
