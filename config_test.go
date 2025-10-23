@@ -1,7 +1,6 @@
 package dctrack
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -90,7 +89,7 @@ func TestConfigDefaults(t *testing.T) {
 
 func TestConfigFromFile(t *testing.T) {
 	// Create temporary config file
-	tempDir, err := ioutil.TempDir("", "dctrack-test")
+	tempDir, err := os.MkdirTemp("", "dctrack-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -108,7 +107,7 @@ request_all_fields: true
 `
 
 	configFile := filepath.Join(tempDir, "config.yaml")
-	err = ioutil.WriteFile(configFile, []byte(configContent), 0644)
+	err = os.WriteFile(configFile, []byte(configContent), 0644)
 	if err != nil {
 		t.Fatalf("Failed to write config file: %v", err)
 	}
@@ -143,7 +142,7 @@ func TestEnvironmentVariableConfig(t *testing.T) {
 
 func TestPasswordFileHandling(t *testing.T) {
 	// Create temporary password file
-	tempDir, err := ioutil.TempDir("", "dctrack-password-test")
+	tempDir, err := os.MkdirTemp("", "dctrack-password-test")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -152,13 +151,13 @@ func TestPasswordFileHandling(t *testing.T) {
 	passwordFile := filepath.Join(tempDir, "password.txt")
 	password := "secret-password-123"
 
-	err = ioutil.WriteFile(passwordFile, []byte(password), 0600)
+	err = os.WriteFile(passwordFile, []byte(password), 0600)
 	if err != nil {
 		t.Fatalf("Failed to write password file: %v", err)
 	}
 
 	// Test password file reading (would require implementation)
-	content, err := ioutil.ReadFile(passwordFile)
+	content, err := os.ReadFile(passwordFile)
 	if err != nil {
 		t.Fatalf("Failed to read password file: %v", err)
 	}
