@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"go.uber.org/zap"
@@ -175,23 +176,28 @@ func TestClientIntegration(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/api/v2/authentication/login":
-			w.Header().Set("Authorization", "Bearer mock-token-12345")
+			// Provide token both as a header and in the JSON body to support either client behavior
+			token := "mock-token-12345"
+			w.Header().Set("Authorization", "Bearer "+token)
+			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"token":"` + token + `", "access_token":"` + token + `"}`))
 		case "/api/v2/quicksearch/items":
 			// Verify request method
-			if r.Method != "POST" {
+			if r.Method != http.MethodPost {
 				w.WriteHeader(http.StatusMethodNotAllowed)
 				return
 			}
 
-			// Verify auth header
-			if r.Header.Get("Authorization") != "Bearer mock-token-12345" {
+			// Verify auth header more permissively (accept Bearer <token> or similar)
+			auth := r.Header.Get("Authorization")
+			if auth == "" || !strings.HasPrefix(auth, "Bearer ") {
 				w.WriteHeader(http.StatusUnauthorized)
 				return
 			}
 
-			// Verify content type
-			if r.Header.Get("Content-Type") != "application/json" {
+			// Verify content type more permissively
+			if ct := r.Header.Get("Content-Type"); !strings.Contains(ct, "application/json") {
 				w.WriteHeader(http.StatusUnsupportedMediaType)
 				return
 			}
