@@ -2,6 +2,7 @@ package dctrack
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -177,6 +178,31 @@ func TestClientIntegration(t *testing.T) {
 			w.Header().Set("Authorization", "Bearer mock-token-12345")
 			w.WriteHeader(http.StatusOK)
 		case "/api/v2/quicksearch/items":
+			// Verify request method
+			if r.Method != "POST" {
+				w.WriteHeader(http.StatusMethodNotAllowed)
+				return
+			}
+
+			// Verify auth header
+			if r.Header.Get("Authorization") != "Bearer mock-token-12345" {
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+
+			// Verify content type
+			if r.Header.Get("Content-Type") != "application/json" {
+				w.WriteHeader(http.StatusUnsupportedMediaType)
+				return
+			}
+
+			// Parse and verify payload
+			var payload map[string]interface{}
+			if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+
 			w.Header().Set("Content-Type", "application/json")
 			response := `{
 				"records": [
@@ -270,7 +296,7 @@ func TestClientClose(t *testing.T) {
 }
 
 func BenchmarkFilterBuilder(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	b.Run("", func(b *testing.B) {
 		_ = NewFilterBuilder().
 			Location("RDU2").
 			Status("Installed").
@@ -279,7 +305,7 @@ func BenchmarkFilterBuilder(b *testing.B) {
 			SearchText("R730").
 			WithPagination(1, 100).
 			Build()
-	}
+	})
 }
 
 func BenchmarkConfigValidation(b *testing.B) {
@@ -289,7 +315,7 @@ func BenchmarkConfigValidation(b *testing.B) {
 		Password: "pass",
 	}
 
-	for i := 0; i < b.N; i++ {
+	b.Run("", func(b *testing.B) {
 		_ = validateConfig(config)
-	}
+	})
 }

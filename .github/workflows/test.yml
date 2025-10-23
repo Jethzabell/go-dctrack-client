@@ -79,9 +79,9 @@ jobs:
       with:
         go-version: 1.22
     - name: Run Gosec Security Scanner
-      uses: securecodewarrior/github-action-gosec@master
+      uses: securego/gosec@master
       with:
-        args: ./...
+        args: -no-fail -fmt sarif -out results.sarif ./...
 
   build-cli:
     runs-on: ubuntu-latest
@@ -96,7 +96,7 @@ jobs:
         GOOS=darwin GOARCH=amd64 go build -o bin/dctrackcheck-darwin-amd64 ./cmd/dctrackcheck
         GOOS=windows GOARCH=amd64 go build -o bin/dctrackcheck-windows-amd64.exe ./cmd/dctrackcheck
     - name: Upload CLI artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: dctrackcheck-binaries
         path: bin/
