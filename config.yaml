@@ -1,11 +1,11 @@
 # DCTrack Client Configuration
 # Supports multiple environments with password file management
 
-# Development environment
-development:
+# Integration environment
+integration:
   url: "https://dctrack-dev.company.com/api/v2"
   username: "api-pwo"
-  password_file: "~/.secrets/dctrack/dev-password.txt"  # Will read password from file
+  password_file: "~/.secrets/on-premise-asset-hub-secrets/dctrack_password.txt"  # Will read password from file
   page_size: 100
   max_retries: 3
   retry_delay: "1s"
@@ -16,7 +16,7 @@ development:
 production:
   url: "https://dctrack.company.com/api/v2"
   username: "api-pwo"
-  password_file: "~/.secrets/dctrack/prod-password.txt"
+  password_file: "~/.secrets/on-premise-asset-hub-secrets/dctrack_password.txt"
   page_size: 1000
   max_retries: 5
   retry_delay: "2s"
@@ -27,7 +27,7 @@ production:
 local:
   url: "https://dctrack.corp.redhat.com/api/v2"
   username: "api-pwo"
-  password_file: "~/.secrets/dctrack/password.txt"
+  password_file: "~/.secrets/on-premise-asset-hub-secrets/dctrack_password.txt"
   page_size: 1000
   max_retries: 3
   retry_delay: "1s"

@@ -161,24 +161,24 @@ export DCTRACK_PASSWORD="your-password"
 Create a `config.yaml` file for multi-environment support:
 
 ```yaml
-development:
+integration:
   url: "https://dctrack-dev.company.com/api/v2"
   username: "dev-api-user"
-  password_file: "~/.secrets/dctrack/dev-password.txt"
+  password_file: "~/.secrets/on-premise-asset-hub-secrets/dctrack_password.txt"
   page_size: 100
   verify_ssl: false
 
 production:
   url: "https://dctrack.company.com/api/v2"
   username: "prod-api-user"
-  password_file: "~/.secrets/dctrack/prod-password.txt"
+  password_file: "~/.secrets/on-premise-asset-hub-secrets/dctrack_password.txt"
   page_size: 1000
   verify_ssl: true
 
 local:
   url: "https://dctrack.company.com/api/v2"
   username: "prod-api-user"
-  password_file: "~/.secrets/dctrack/password.txt"
+  password_file: "~/.secrets/on-premise-asset-hub-secrets/dctrack_password.txt"
   page_size: 1000
   verify_ssl: false
 ```
